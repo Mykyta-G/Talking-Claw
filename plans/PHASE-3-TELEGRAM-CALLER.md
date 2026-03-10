@@ -204,10 +204,10 @@ RemainAfterExit=no
 ## What You Have After This Phase
 
 ```
-✅ Pyrogram session authenticated
-✅ Userbot can initiate calls to your Telegram account
-✅ Audio bridges between Telegram call and voice pipeline
-✅ Trigger script ready for agents to invoke
+Pyrogram session authenticated
+Userbot can initiate calls to your Telegram account
+Audio bridges between Telegram call and voice pipeline
+Trigger script ready for agents to invoke
 ```
 
 ## Known Challenges

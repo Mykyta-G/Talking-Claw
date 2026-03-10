@@ -202,10 +202,10 @@ WantedBy=multi-user.target
 ## What You Have After This Phase
 
 ```
-✅ Pipecat voice pipeline running on GPU server
-✅ Silero VAD detecting speech
-✅ Whisper transcribing speech to text (~200ms)
-✅ LLM generating responses (local or cloud)
-✅ Kokoro speaking responses (~150ms)
-✅ WebSocket endpoint ready for audio streaming
+Pipecat voice pipeline running on GPU server
+Silero VAD detecting speech
+Whisper transcribing speech to text (~200ms)
+LLM generating responses (local or cloud)
+Kokoro speaking responses (~150ms)
+WebSocket endpoint ready for audio streaming
 ```

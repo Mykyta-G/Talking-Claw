@@ -99,9 +99,9 @@ time curl -s http://localhost:11434/api/generate -d '{
 ## What You Have After This Phase
 
 ```
-✅ Full working voice call system
-✅ AI calls you, you pick up, have a conversation
-✅ Sub-2 second response time
-✅ Post-call summaries saved
-✅ System runs as background services
+Full working voice call system
+AI calls you, you pick up, have a conversation
+Sub-2 second response time
+Post-call summaries saved
+System runs as background services
 ```

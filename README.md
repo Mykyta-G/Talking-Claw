@@ -1,4 +1,4 @@
-# 🐾 Talking-Claw
+# Talking-Claw
 
 **Have you imagined an AI that calls you? Now it can.**
 
@@ -6,11 +6,11 @@ Your AI agents work autonomously. When they finish a task or need your input, th
 
 ## Features
 
-- 📞 **Real Telegram calls** — your phone actually rings
-- 🧠 **Talk to your real AI agent** — same personality, memory, and tools
-- ⚡ **~1-1.5 second response time** — streamed sentence-by-sentence
-- 🔒 **100% local pipeline** — STT, TTS, and VAD run on your own GPU
-- 💰 **$0 infrastructure cost** — runs on hardware you own
+- **Real Telegram calls** — your phone actually rings
+- **Talk to your real AI agent** — same personality, memory, and tools
+- **~1-1.5 second response time** — streamed sentence-by-sentence
+- **100% local pipeline** — STT, TTS, and VAD run on your own GPU
+- **$0 infrastructure cost** — runs on hardware you own
 
 ## Architecture
 

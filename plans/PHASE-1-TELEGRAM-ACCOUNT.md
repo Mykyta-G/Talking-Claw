@@ -34,9 +34,9 @@ Buy a prepaid SIM for ~$5. More reliable than TextNow.
 ## What You Have After This Phase
 
 ```
-✅ A second Telegram account (the AI's "phone number")
-✅ API ID and API Hash for programmatic access
-✅ 2FA password set
+A second Telegram account (the AI's "phone number")
+API ID and API Hash for programmatic access
+2FA password set
 ```
 
 ## Credentials to Save

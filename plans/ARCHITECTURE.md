@@ -74,12 +74,12 @@ Key: responses are **streamed sentence-by-sentence**. TTS starts speaking the fi
 
 | Component | What | Runs On | Open Source |
 |-----------|------|---------|-------------|
-| Pyrogram | Telegram MTProto client | Orchestrator | ✅ MIT |
-| pytgcalls | Telegram VoIP bridge | Orchestrator | ✅ LGPL |
-| Pipecat | Voice AI pipeline framework | GPU Server | ✅ BSD |
-| Silero VAD | Voice activity detection | GPU Server | ✅ MIT |
-| faster-whisper | Speech-to-text (CTranslate2) | GPU Server | ✅ MIT |
-| Kokoro | Text-to-speech (82M ONNX) | GPU Server | ✅ Apache |
+| Pyrogram | Telegram MTProto client | Orchestrator | MIT |
+| pytgcalls | Telegram VoIP bridge | Orchestrator | LGPL |
+| Pipecat | Voice AI pipeline framework | GPU Server | BSD |
+| Silero VAD | Voice activity detection | GPU Server | MIT |
+| faster-whisper | Speech-to-text (CTranslate2) | GPU Server | MIT |
+| Kokoro | Text-to-speech (82M ONNX) | GPU Server | Apache |
 
 ## Cost
 

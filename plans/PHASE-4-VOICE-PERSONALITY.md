@@ -98,8 +98,8 @@ Guidelines for agents:
 ## What You Have After This Phase
 
 ```
-✅ AI speaks with appropriate voice for its personality
-✅ Conversations feel natural (short, conversational, human-like)
-✅ Post-call summaries saved to agent memory
-✅ Agents know when to call vs. text
+AI speaks with appropriate voice for its personality
+Conversations feel natural (short, conversational, human-like)
+Post-call summaries saved to agent memory
+Agents know when to call vs. text
 ```
