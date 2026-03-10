@@ -1,4 +1,4 @@
-# Talking-Claw Forge Pipeline -- Dependencies
+# Talking-Claw Voice Pipeline -- Dependencies
 #
 # Install: pip install -r requirements.txt
 # Python 3.10+ required

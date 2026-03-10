@@ -1,4 +1,4 @@
-# Talking-Claw Pi Caller -- Dependencies
+# Talking-Claw Caller -- Dependencies
 #
 # Install: pip install -r requirements.txt
 # Python 3.10+ required
@@ -10,7 +10,7 @@ tgcrypto>=1.2.5
 # Telegram VoIP / voice calls
 py-tgcalls>=1.3.0
 
-# WebSocket for audio streaming to Forge
+# WebSocket for audio streaming to pipeline
 websockets>=12.0
 
 # HTTP client for health checks and API calls
