@@ -7,7 +7,7 @@
 # Pipecat voice pipeline framework with extensions
 pipecat-ai[silero,whisper,kokoro,websocket]>=0.0.50
 
-# HTTP client for clawdbot gateway
+# HTTP client for agent API bridge
 aiohttp>=3.9.0
 
 # Audio processing

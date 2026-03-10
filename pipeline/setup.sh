@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# Talking-Claw Forge Pipeline -- One-Command Setup
+# Talking-Claw pipeline server Pipeline -- One-Command Setup
 #
-# Run this on the Forge GPU server to set up everything:
+# Run this on the pipeline server to set up everything:
 #   chmod +x setup.sh
 #   ./setup.sh
 #
@@ -31,7 +31,7 @@ error() { echo -e "${RED}[ERROR]${NC} $*"; }
 # Pre-flight checks
 # ---------------------------------------------------------------------------
 
-info "Talking-Claw Forge Pipeline Setup"
+info "Talking-Claw pipeline server Pipeline Setup"
 echo "=================================================="
 echo
 
@@ -131,7 +131,7 @@ print('  Silero VAD: OK')
 if [ ! -f .env ]; then
     info "Creating .env from template..."
     cp .env.example .env
-    warn "IMPORTANT: Edit .env with your clawdbot gateway details!"
+    warn "IMPORTANT: Edit .env with your agent API details!"
     warn "  nano $SCRIPT_DIR/.env"
 else
     info ".env file already exists -- not overwriting"
@@ -149,7 +149,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
         # Replace placeholder paths with actual paths
         REAL_USER="$(whoami)"
         REAL_DIR="$SCRIPT_DIR"
-        sed "s|/home/YOUR_USER/talking-claw/forge|$REAL_DIR|g; s|YOUR_USER|$REAL_USER|g" \
+        sed "s|/home/YOUR_USER/Talking-Claw/pipeline|$REAL_DIR|g; s|YOUR_USER|$REAL_USER|g" \
             "$SERVICE_FILE" | sudo tee /etc/systemd/system/talking-claw-pipeline.service >/dev/null
         sudo systemctl daemon-reload
         sudo systemctl enable talking-claw-pipeline
@@ -168,7 +168,7 @@ echo "=================================================="
 info "Setup complete!"
 echo
 echo "Next steps:"
-echo "  1. Edit .env with your clawdbot gateway URL and token"
+echo "  1. Edit .env with your agent API URL and token"
 echo "  2. Test the pipeline:"
 echo "       cd $SCRIPT_DIR"
 echo "       source venv/bin/activate"
@@ -178,5 +178,5 @@ echo "  3. Or start as a service:"
 echo "       sudo systemctl start talking-claw-pipeline"
 echo
 echo "The pipeline will listen on ws://0.0.0.0:8790 for"
-echo "incoming audio connections from the Pi caller."
+echo "incoming audio connections from the caller."
 echo "=================================================="

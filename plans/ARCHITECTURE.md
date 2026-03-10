@@ -1,4 +1,4 @@
-# Talking-Claw — Architecture
+# Talking-Claw -- Architecture
 
 > Your AI agents call you on Telegram. Your phone rings. You pick up and talk.
 > After the call, the AI summarizes the conversation and continues working.
@@ -6,55 +6,55 @@
 ## How It Works
 
 ```
-┌────────────────────────────────┐
-│  YOUR PHONE                    │
-│  Telegram call → pick up       │
-└──────────────┬─────────────────┘
-               │ real Telegram VoIP call
-┌──────────────▼─────────────────┐
-│  ORCHESTRATOR (Raspberry Pi)   │
-│                                │
-│  Telegram Userbot              │
-│  (Pyrogram + pytgcalls)        │
-│  • Initiates real 1-on-1 call  │
-│  • Bridges PCM audio ←→ WS    │
-│                                │
-│  Your AI Agent (clawdbot, etc) │
-│  • Receives transcribed text   │
-│  • Responds naturally          │
-│  • Full tools + memory access  │
-└──────────────┬─────────────────┘
-               │ WebSocket (PCM audio)
-               │ (local network / Tailscale)
-┌──────────────▼─────────────────┐
-│  GPU SERVER (any NVIDIA GPU)   │
-│                                │
-│  Pipecat Voice Pipeline:       │
-│                                │
-│  ┌──────────────────────┐      │
-│  │ Silero VAD           │ 0 GB │
-│  │ (voice detection)    │      │
-│  └──────────┬───────────┘      │
-│             ▼                  │
-│  ┌──────────────────────┐      │
-│  │ Whisper STT          │ 3 GB │
-│  │ (speech → text)      │      │
-│  └──────────┬───────────┘      │
-│             ▼                  │
-│  ┌──────────────────────┐      │
-│  │ Agent Bridge         │ 0 GB │
-│  │ (sends text to agent │      │
-│  │  returns response)   │      │
-│  └──────────┬───────────┘      │
-│             ▼                  │
-│  ┌──────────────────────┐      │
-│  │ Kokoro TTS           │ 2 GB │
-│  │ (text → speech)      │      │
-│  └──────────────────────┘      │
-│                                │
-│  Total VRAM: ~5 GB             │
-│  Min GPU: 6 GB (GTX 1060+)    │
-└────────────────────────────────┘
++--------------------------------+
+|  YOUR PHONE                    |
+|  Telegram call -> pick up      |
++---------------+----------------+
+                | real Telegram VoIP call
++---------------v----------------+
+|  ORCHESTRATOR (always-on server)   |
+|                                |
+|  Telegram Userbot              |
+|  (Pyrogram + pytgcalls)        |
+|  * Initiates real 1-on-1 call  |
+|  * Bridges PCM audio <-> WS   |
+|                                |
+|  Your AI Agent (any backend)   |
+|  * Receives transcribed text   |
+|  * Responds naturally          |
+|  * Full tools + memory access  |
++---------------+----------------+
+                | WebSocket (PCM audio)
+                | (local network / Tailscale)
++---------------v----------------+
+|  GPU SERVER (any NVIDIA GPU)   |
+|                                |
+|  Pipecat Voice Pipeline:       |
+|                                |
+|  +----------------------+      |
+|  | Silero VAD           | 0 GB |
+|  | (voice detection)    |      |
+|  +----------+-----------+      |
+|             v                  |
+|  +----------------------+      |
+|  | Whisper STT          | 3 GB |
+|  | (speech -> text)     |      |
+|  +----------+-----------+      |
+|             v                  |
+|  +----------------------+      |
+|  | Agent Bridge         | 0 GB |
+|  | (sends text to agent |      |
+|  |  returns response)   |      |
+|  +----------+-----------+      |
+|             v                  |
+|  +----------------------+      |
+|  | Kokoro TTS           | 2 GB |
+|  | (text -> speech)     |      |
+|  +----------------------+      |
+|                                |
+|  Total VRAM: ~5 GB             |
+|  Min GPU: 6 GB (GTX 1060+)    |
++--------------------------------+
 ```
 
 ## Latency (Streamed)

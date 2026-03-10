@@ -20,13 +20,13 @@ Wants=network-online.target
 Type=simple
 User=YOUR_USER
 Group=YOUR_USER
-WorkingDirectory=/home/YOUR_USER/talking-claw/forge
-ExecStart=/home/YOUR_USER/talking-claw/forge/venv/bin/python pipeline.py
+WorkingDirectory=/home/YOUR_USER/Talking-Claw/pipeline
+ExecStart=/home/YOUR_USER/Talking-Claw/pipeline/venv/bin/python pipeline.py
 Restart=always
 RestartSec=5
 
 # Environment
-EnvironmentFile=-/home/YOUR_USER/talking-claw/forge/.env
+EnvironmentFile=-/home/YOUR_USER/Talking-Claw/pipeline/.env
 Environment=CUDA_VISIBLE_DEVICES=0
 
 # Logging

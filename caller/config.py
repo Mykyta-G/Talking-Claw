@@ -1,5 +1,5 @@
 """
-Talking-Claw Pi Caller -- Configuration
+Talking-Claw Caller -- Configuration
 
 Reads all settings from .env file. Never hardcode secrets.
 """
@@ -9,7 +9,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load .env from the pi/ directory
+# Load .env from the caller/ directory
 _env_path = Path(__file__).parent / ".env"
 load_dotenv(_env_path)
 
@@ -36,23 +36,23 @@ TELEGRAM_API_HASH: str = _require("TELEGRAM_API_HASH")
 TELEGRAM_2FA_PASSWORD: str = _optional("TELEGRAM_2FA_PASSWORD")
 TARGET_USER_ID: int = int(_require("TARGET_USER_ID"))
 
-# Session file name (stored in pi/ directory)
+# Session file name (stored in caller/ directory)
 SESSION_NAME: str = "talking_claw_userbot"
 SESSION_PATH: str = str(Path(__file__).parent / SESSION_NAME)
 
-# -- Forge GPU server --
-FORGE_HOST: str = _optional("FORGE_HOST", "100.85.217.17")
-FORGE_WS_PORT: int = int(_optional("FORGE_WS_PORT", "8790"))
-FORGE_HEALTH_PORT: int = int(_optional("FORGE_HEALTH_PORT", "8790"))
-FORGE_WS_URL: str = f"ws://{FORGE_HOST}:{FORGE_WS_PORT}/ws"
-FORGE_HEALTH_URL: str = f"http://{FORGE_HOST}:{FORGE_HEALTH_PORT}/health"
+# -- pipeline server --
+PIPELINE_HOST: str = _optional("PIPELINE_HOST", "YOUR_GPU_SERVER_IP")
+PIPELINE_WS_PORT: int = int(_optional("PIPELINE_WS_PORT", "8790"))
+PIPELINE_HEALTH_PORT: int = int(_optional("PIPELINE_HEALTH_PORT", "8790"))
+PIPELINE_WS_URL: str = f"ws://{PIPELINE_HOST}:{PIPELINE_WS_PORT}/ws"
+PIPELINE_HEALTH_URL: str = f"http://{PIPELINE_HOST}:{PIPELINE_HEALTH_PORT}/health"
 
 # -- Wake-on-LAN (optional) --
-FORGE_MAC_ADDRESS: str = _optional("FORGE_MAC_ADDRESS")
-FORGE_BROADCAST: str = _optional("FORGE_BROADCAST", "100.85.255.255")
+WOL_MAC_ADDRESS: str = _optional("WOL_MAC_ADDRESS")
+WOL_BROADCAST: str = _optional("WOL_BROADCAST", "255.255.255.255")
 
 # -- Agent context --
-AGENT_ID: str = _optional("AGENT_ID", "wizard")
+AGENT_ID: str = _optional("AGENT_ID", "assistant")
 
 # -- Audio settings --
 # Telegram uses 16-bit PCM at 48kHz mono for calls.
@@ -63,6 +63,6 @@ AUDIO_CHANNELS: int = 1
 AUDIO_SAMPLE_WIDTH: int = 2  # 16-bit = 2 bytes
 
 # -- Timeouts --
-FORGE_WAKE_TIMEOUT: int = 120  # seconds to wait for Forge to come online
-FORGE_HEALTH_TIMEOUT: int = 5  # seconds for health check HTTP request
+WOL_TIMEOUT: int = 120  # seconds to wait for pipeline server to come online
+HEALTH_TIMEOUT: int = 5  # seconds for health check HTTP request
 CALL_RING_TIMEOUT: int = 30  # seconds to wait for user to pick up

@@ -1,5 +1,5 @@
 """
-Talking-Claw Forge Pipeline -- Configuration
+Talking-Claw Voice Pipeline -- Configuration
 
 Reads all settings from .env file. Runs on the GPU server.
 """
@@ -10,7 +10,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load .env from the forge/ directory
+# Load .env from the pipeline/ directory
 _env_path = Path(__file__).parent / ".env"
 load_dotenv(_env_path)
 
@@ -31,10 +31,10 @@ def _optional(key: str, default: str = "") -> str:
     return os.getenv(key, default).strip()
 
 
-# -- Clawdbot Gateway --
-CLAWDBOT_GATEWAY: str = _require("CLAWDBOT_GATEWAY")
+# -- Agent API --
+AGENT_API_URL: str = _require("AGENT_API_URL")
 GATEWAY_TOKEN: str = _optional("GATEWAY_TOKEN")
-DEFAULT_AGENT_ID: str = _optional("AGENT_ID", "wizard")
+DEFAULT_AGENT_ID: str = _optional("AGENT_ID", "assistant")
 
 # -- Pipeline server --
 PIPELINE_HOST: str = _optional("PIPELINE_HOST", "0.0.0.0")
@@ -53,16 +53,14 @@ VAD_THRESHOLD: float = float(_optional("VAD_THRESHOLD", "0.5"))
 DEFAULT_VOICE: str = _optional("DEFAULT_VOICE", "bm_lewis")
 
 # Per-agent voice mapping
+# Set VOICE_MAP in .env as JSON, e.g.: {"assistant":"bm_lewis","helper":"am_adam"}
 _voice_map_raw = _optional("VOICE_MAP", '{}')
 try:
     VOICE_MAP: dict[str, str] = json.loads(_voice_map_raw)
 except json.JSONDecodeError:
     VOICE_MAP = {}
 
-# Ensure defaults exist in the map
-VOICE_MAP.setdefault("wizard", "bm_lewis")
-VOICE_MAP.setdefault("killer", "am_michael")
-VOICE_MAP.setdefault("gunnar", "am_adam")
+# Ensure a default entry exists in the map
 VOICE_MAP.setdefault("default", DEFAULT_VOICE)
 
 

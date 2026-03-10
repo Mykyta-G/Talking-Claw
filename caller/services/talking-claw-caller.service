@@ -21,14 +21,14 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=mykyta-g
-Group=mykyta-g
-WorkingDirectory=/home/mykyta-g/Talking-Claw/pi
-ExecStart=/home/mykyta-g/Talking-Claw/pi/venv/bin/python trigger.py
+User=YOUR_USER
+Group=YOUR_USER
+WorkingDirectory=/home/YOUR_USER/Talking-Claw/pi
+ExecStart=/home/YOUR_USER/Talking-Claw/caller/venv/bin/python trigger.py
 RemainAfterExit=no
 
 # Environment
-EnvironmentFile=-/home/mykyta-g/Talking-Claw/pi/.env
+EnvironmentFile=-/home/YOUR_USER/Talking-Claw/caller/.env
 
 # Logging
 StandardOutput=journal

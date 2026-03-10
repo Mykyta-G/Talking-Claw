@@ -2,13 +2,13 @@
 Talking-Claw -- Call Trigger
 
 Entry point for AI agents to initiate a voice call. Handles:
-    1. Waking the Forge GPU server (Wake-on-LAN if configured)
+    1. Waking the pipeline server (Wake-on-LAN if configured)
     2. Waiting for the voice pipeline to come online
     3. Starting the Telegram call bridge
 
 Usage:
     python trigger.py                           # default agent, no reason
-    python trigger.py wizard "task complete"    # specific agent + reason
+    python trigger.py assistant "task complete"  # specific agent + reason
     python trigger.py --check                   # just check pipeline health
 
 Exit codes:
@@ -28,24 +28,24 @@ import aiohttp
 
 from config import (
     AGENT_ID,
-    FORGE_BROADCAST,
-    FORGE_HEALTH_TIMEOUT,
-    FORGE_HEALTH_URL,
-    FORGE_HOST,
-    FORGE_MAC_ADDRESS,
-    FORGE_WAKE_TIMEOUT,
+    WOL_BROADCAST,
+    HEALTH_TIMEOUT,
+    PIPELINE_HEALTH_URL,
+    PIPELINE_HOST,
+    WOL_MAC_ADDRESS,
+    WOL_TIMEOUT,
 )
 
 logger = logging.getLogger("talking-claw.trigger")
 
 
 # ---------------------------------------------------------------------------
-# Forge management
+# pipeline server management
 # ---------------------------------------------------------------------------
 
 def send_wake_on_lan(mac_address: str, broadcast: str) -> bool:
     """
-    Send a Wake-on-LAN magic packet to wake the Forge server.
+    Send a Wake-on-LAN magic packet to wake the pipeline server.
     Returns True if the packet was sent (not that the server woke up).
     """
     if not mac_address:
@@ -87,9 +87,9 @@ def send_wake_on_lan(mac_address: str, broadcast: str) -> bool:
 async def check_pipeline_health() -> bool:
     """Check if the Pipecat voice pipeline is running and healthy."""
     try:
-        timeout = aiohttp.ClientTimeout(total=FORGE_HEALTH_TIMEOUT)
+        timeout = aiohttp.ClientTimeout(total=HEALTH_TIMEOUT)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(FORGE_HEALTH_URL) as resp:
+            async with session.get(PIPELINE_HEALTH_URL) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     logger.info("Pipeline health: %s", data)
@@ -101,14 +101,14 @@ async def check_pipeline_health() -> bool:
         logger.debug("Pipeline health check timed out")
         return False
     except aiohttp.ClientConnectorError:
-        logger.debug("Pipeline not reachable at %s", FORGE_HEALTH_URL)
+        logger.debug("Pipeline not reachable at %s", PIPELINE_HEALTH_URL)
         return False
     except Exception as exc:
         logger.debug("Pipeline health check failed: %s", exc)
         return False
 
 
-async def wait_for_pipeline(timeout: int = FORGE_WAKE_TIMEOUT) -> bool:
+async def wait_for_pipeline(timeout: int = WOL_TIMEOUT) -> bool:
     """
     Wait for the voice pipeline to become available.
     Sends WoL if configured, then polls the health endpoint.
@@ -118,8 +118,8 @@ async def wait_for_pipeline(timeout: int = FORGE_WAKE_TIMEOUT) -> bool:
         logger.info("Pipeline already online")
         return True
 
-    # Try to wake the Forge server
-    send_wake_on_lan(FORGE_MAC_ADDRESS, FORGE_BROADCAST)
+    # Try to wake the pipeline server
+    send_wake_on_lan(WOL_MAC_ADDRESS, WOL_BROADCAST)
 
     # Poll until healthy or timeout
     start = time.time()
@@ -143,9 +143,9 @@ async def wait_for_pipeline(timeout: int = FORGE_WAKE_TIMEOUT) -> bool:
 
     logger.error(
         "Pipeline did not come online within %d seconds. "
-        "Is the Forge server running? Check: %s",
+        "Is the pipeline server running? Check: %s",
         timeout,
-        FORGE_HEALTH_URL,
+        PIPELINE_HEALTH_URL,
     )
     return False
 
@@ -156,7 +156,7 @@ async def wait_for_pipeline(timeout: int = FORGE_WAKE_TIMEOUT) -> bool:
 
 async def trigger_call(agent_id: str = AGENT_ID, reason: str = "") -> int:
     """
-    Full trigger sequence: wake Forge -> check health -> make call.
+    Full trigger sequence: wake pipeline server -> check health -> make call.
 
     Returns:
         0 on success, 1 on failure.
@@ -165,7 +165,7 @@ async def trigger_call(agent_id: str = AGENT_ID, reason: str = "") -> int:
     logger.info("Talking-Claw call trigger")
     logger.info("  Agent:  %s", agent_id)
     logger.info("  Reason: %s", reason or "(none)")
-    logger.info("  Forge:  %s", FORGE_HOST)
+    logger.info("  pipeline server:  %s", PIPELINE_HOST)
     logger.info("=" * 50)
 
     # Step 1: Ensure pipeline is available
@@ -200,7 +200,7 @@ def print_usage() -> None:
     print("  python trigger.py --help")
     print()
     print("Arguments:")
-    print("  agent_id   Agent personality: wizard, killer, gunnar (default: from .env)")
+    print("  agent_id   Agent personality to use (default: from .env)")
     print("  reason     Why the call is being made (free text)")
     print()
     print("Options:")
@@ -208,8 +208,8 @@ def print_usage() -> None:
     print("  --help     Show this message")
     print()
     print("Examples:")
-    print('  python trigger.py wizard "deployment finished, need review"')
-    print("  python trigger.py killer")
+    print('  python trigger.py assistant "deployment finished, need review"')
+    print("  python trigger.py helper")
     print("  python trigger.py --check")
 
 
@@ -229,7 +229,7 @@ async def main() -> int:
             print("Pipeline is online and healthy.")
             return 0
         else:
-            print(f"Pipeline is NOT reachable at {FORGE_HEALTH_URL}")
+            print(f"Pipeline is NOT reachable at {PIPELINE_HEALTH_URL}")
             return 1
 
     # Parse: trigger.py [agent_id] [reason...]

@@ -1,9 +1,9 @@
-# Phase 4 — Voice Personality & Agent Integration
+# Phase 4 -- Voice Personality & Agent Integration
 
 > **Time:** 30 minutes
 > **What:** Make the AI sound and behave like a real person on the phone.
 
-## 4.1 — Voice Call System Prompt
+## 4.1 -- Voice Call System Prompt
 
 When a voice call starts, inject this into the agent's context:
 
@@ -14,21 +14,21 @@ VOICE RULES:
 - 1-3 sentences max per turn. This is a conversation, not an essay.
 - Use contractions: don't, can't, I'll, that's, we're, it's.
 - Natural fillers are OK: "well", "so", "right", "hmm", "look".
-- No markdown. No bullet points. No code blocks. No emojis.
-- No asterisks for emphasis — use word stress naturally.
+- No markdown. No bullet points. No code blocks.
+- No asterisks for emphasis -- use word stress naturally.
 - If asked about code or long content, say "I'll send that to you in chat."
 - Match your personality but keep it CONCISE.
-- When wrapping up, say goodbye naturally — don't just stop.
+- When wrapping up, say goodbye naturally -- don't just stop.
 - You can still use tools silently. The user only hears your spoken words.
 ```
 
-## 4.2 — TTS Voice Selection
+## 4.2 -- TTS Voice Selection
 
 Kokoro voices that work well for AI assistants:
 
 | Voice ID | Style | Good For |
 |----------|-------|----------|
-| `bm_lewis` | Deep, authoritative British | Wizard, formal assistants |
+| `bm_lewis` | Deep, authoritative British | Formal assistants |
 | `am_michael` | Confident American | General purpose, professional |
 | `am_adam` | Casual younger male | Friendly, informal assistants |
 | `af_heart` | Warm female | Approachable, empathetic |
@@ -38,28 +38,32 @@ Kokoro voices that work well for AI assistants:
 
 ```python
 VOICES = {
-    "wizard": "bm_lewis",     # deep wizard energy
-    "killer": "am_michael",   # confident coder
-    "gunnar": "am_adam",      # chill teen
+    "assistant": "bm_lewis",   # main assistant
+    "helper": "am_adam",       # secondary agent
     "default": "bm_lewis",
 }
 ```
 
-## 4.3 — Conversation Flow
+Set this in your `.env` file as:
+```
+VOICE_MAP={"assistant":"bm_lewis","helper":"am_adam"}
+```
+
+## 4.3 -- Conversation Flow
 
 ```
-Phone rings → You pick up
-     ↓
-AI: "Hey, it's [Agent]. I just finished [task]. Got a minute?"
-     ↓
+Phone rings -> You pick up
+     |
+AI: "Hey, it's your assistant. I just finished [task]. Got a minute?"
+     |
 You talk naturally back and forth (1-2 sec response time)
-     ↓
+     |
 Either side says goodbye
-     ↓
-Call ends → AI saves transcript → Continues working
+     |
+Call ends -> AI saves transcript -> Continues working
 ```
 
-## 4.4 — Post-Call Summary
+## 4.4 -- Post-Call Summary
 
 After the call ends, the pipeline sends the full transcript back to the agent:
 
@@ -79,7 +83,7 @@ async def on_call_ended(transcript: list[dict]):
     )
 ```
 
-## 4.5 — When Should the AI Call?
+## 4.5 -- When Should the AI Call?
 
 Guidelines for agents:
 

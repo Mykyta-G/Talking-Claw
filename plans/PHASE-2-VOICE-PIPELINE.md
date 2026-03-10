@@ -1,4 +1,4 @@
-# Phase 2 — Voice Pipeline on GPU Server
+# Phase 2 -- Voice Pipeline on GPU Server
 
 > **Time:** 1-2 hours
 > **What:** Install Pipecat + STT + TTS on your GPU machine.
@@ -9,7 +9,7 @@
 - CUDA 12.x installed
 - Python 3.10+
 
-## 2.1 — Install
+## 2.1 -- Install
 
 ```bash
 # SSH into your GPU server
@@ -23,14 +23,14 @@ pip install "pipecat-ai[silero,whisper,kokoro,websocket]"
 pip install aiohttp numpy soundfile
 ```
 
-## 2.2 — Test Each Component
+## 2.2 -- Test Each Component
 
 **Test STT:**
 ```bash
 python -c "
 from faster_whisper import WhisperModel
 model = WhisperModel('distil-medium.en', device='cuda', compute_type='float16')
-print('STT ready —', model)
+print('STT ready')
 "
 ```
 
@@ -40,24 +40,24 @@ python -c "
 from kokoro_onnx import Kokoro
 kokoro = Kokoro('kokoro-v1.0.onnx', 'voices-v1.0.bin')
 samples, sr = kokoro.create('Hello, this is a test.', voice='bm_lewis', speed=1.0)
-print(f'TTS ready — generated {len(samples)} samples at {sr}Hz')
+print(f'TTS ready -- generated {len(samples)} samples at {sr}Hz')
 "
 ```
 
-## 2.3 — Agent Bridge
+## 2.3 -- Agent Bridge
 
 The Agent Bridge replaces the LLM in the pipeline. Instead of running a local model, it sends the transcribed text to your AI agent and returns the response.
 
-Two modes are supported:
+Three modes are supported:
 
-### Mode A: HTTP Bridge (for clawdbot or any REST API)
+### Mode A: HTTP Bridge (for any REST API)
 
 ```python
-# agent_bridge.py — sends text to your agent's API endpoint
+# agent_bridge.py -- sends text to your agent's API endpoint
 import aiohttp
 
 class AgentBridge:
-    def __init__(self, endpoint: str, token: str = "", agent_id: str = "default"):
+    def __init__(self, endpoint: str, token: str = "", agent_id: str = "assistant"):
         self.endpoint = endpoint
         self.token = token
         self.agent_id = agent_id
@@ -76,7 +76,7 @@ class AgentBridge:
 ### Mode B: Ollama Bridge (free, fully local)
 
 ```python
-# For users who want 100% local — uses Ollama on the same GPU server
+# For users who want 100% local -- uses Ollama on the same GPU server
 from pipecat.services.ollama import OllamaLLMService
 
 llm = OllamaLLMService(
@@ -88,16 +88,16 @@ llm = OllamaLLMService(
 ### Mode C: Direct Anthropic (Claude API)
 
 ```python
-# For users with Claude API access — best quality, ~$0.001 per exchange
+# For users with Claude API access
 from pipecat.services.anthropic import AnthropicLLMService
 
 llm = AnthropicLLMService(
-    model="claude-haiku-4-5",  # fastest Claude model
+    model="claude-haiku-4-5",
     api_key="sk-ant-...",
 )
 ```
 
-## 2.4 — Full Pipeline
+## 2.4 -- Full Pipeline
 
 ```python
 # pipeline.py
@@ -149,7 +149,7 @@ async def main():
     context = OpenAILLMContext(messages=[
         {"role": "system", "content": (
             "You are in a live voice call. Keep responses to 1-3 sentences. "
-            "Speak naturally and conversationally. No markdown, no emojis. "
+            "Speak naturally and conversationally. No markdown. "
             "Use contractions. Be concise."
         )}
     ])
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 2.5 — Run as Service (Optional)
+## 2.5 -- Run as Service (Optional)
 
 ```bash
 # /etc/systemd/system/talking-claw-pipeline.service

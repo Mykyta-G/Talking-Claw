@@ -5,7 +5,7 @@ Run this ONCE interactively to create the session file.
 You will need the phone number, verification code, and optional 2FA password.
 
 Usage:
-    cd pi/
+    cd caller/
     cp .env.example .env   # fill in your credentials
     python auth.py
 

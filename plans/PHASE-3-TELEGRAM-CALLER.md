@@ -1,4 +1,4 @@
-# Phase 3 — Telegram Voice Caller
+# Phase 3 -- Telegram Voice Caller
 
 > **Time:** 1-2 hours
 > **What:** Set up the Telegram userbot that initiates real calls and bridges audio.
@@ -6,10 +6,10 @@
 This is the trickiest phase. The userbot makes a real Telegram call to your account
 and bridges the audio to/from the voice pipeline over WebSocket.
 
-## 3.1 — Install on Orchestrator
+## 3.1 -- Install on Orchestrator
 
 ```bash
-# On your Pi / orchestrator machine
+# On your server / orchestrator machine
 mkdir -p ~/talking-claw/caller
 cd ~/talking-claw/caller
 python3 -m venv venv
@@ -18,10 +18,10 @@ source venv/bin/activate
 pip install pyrogram tgcrypto py-tgcalls websockets aiohttp numpy
 ```
 
-## 3.2 — Authenticate Pyrogram (One-Time)
+## 3.2 -- Authenticate Pyrogram (One-Time)
 
 ```python
-# auth.py — run ONCE interactively
+# auth.py -- run ONCE interactively
 from pyrogram import Client
 
 app = Client(
@@ -41,21 +41,21 @@ python auth.py
 # Enter the TextNow phone number when prompted
 # Enter the verification code from TextNow app
 # Enter the 2FA password if set
-# Done — session file created
+# Done -- session file created
 ```
 
-## 3.3 — The Call Bridge
+## 3.3 -- The Call Bridge
 
 This is the core component. It:
 1. Initiates a real 1-on-1 Telegram call to your account
-2. Captures incoming audio (your voice) → sends to pipeline via WebSocket
-3. Receives audio from pipeline (AI voice) → plays into the Telegram call
+2. Captures incoming audio (your voice) -> sends to pipeline via WebSocket
+3. Receives audio from pipeline (AI voice) -> plays into the Telegram call
 
 ```python
 # caller.py
 """
 Telegram Voice Call Bridge.
-Makes a real call and bridges audio to the Pipecat voice pipeline.
+Makes a real call and bridges audio to the serverpecat voice pipeline.
 """
 
 import asyncio
@@ -70,7 +70,7 @@ API_ID = 0              # fill in
 API_HASH = ""           # fill in
 SESSION = "talking_claw_userbot"
 TARGET_USER_ID = 0      # your main Telegram user ID
-PIPELINE_WS = "ws://YOUR_GPU_SERVER:8790"
+PIPELINE_WS = "ws://YOUR_GPU_SERVER_IP:8790"
 
 # === SETUP ===
 app = Client(SESSION, api_id=API_ID, api_hash=API_HASH)
@@ -100,9 +100,9 @@ async def make_call(reason: str = ""):
     #   3. User gets notification, joins the voice chat
     #
     # Option B: Use Telegram's raw phone.requestCall API via Pyrogram (real call)
-    #   This initiates an actual VoIP call — phone rings on the target's device.
+    #   This initiates an actual VoIP call -- phone rings on the target's device.
     #   Requires implementing the call signaling protocol.
-    #   See: https://core.telegram.org/api/end-to-end/voice-calls
+    #   See: https://core.telegram.org/acaller/end-to-end/voice-calls
     #
     # Option C: Use tgcalls (MarshalX's lower-level library)
     #   pip install tgcalls
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     asyncio.run(make_call(reason))
 ```
 
-## 3.4 — Call Trigger Script
+## 3.4 -- Call Trigger Script
 
 This is what your AI agent runs when it wants to call you.
 
@@ -185,7 +185,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 3.5 — Run as Service
+## 3.5 -- Run as Service
 
 ```bash
 # /etc/systemd/system/talking-claw-caller.service
@@ -212,6 +212,6 @@ Trigger script ready for agents to invoke
 
 ## Known Challenges
 
-1. **pytgcalls private call API** — group voice chats are well-tested; direct 1-on-1 calls need the lower-level `phone.requestCall` API. Test both approaches.
-2. **Audio format mismatch** — Telegram uses 48kHz/16-bit PCM, Pipecat may expect different rates. You'll need resampling (numpy or scipy).
-3. **Telegram session conflicts** — the userbot session must only be used by ONE process at a time. Don't run auth.py while caller.py is running.
+1. **pytgcalls private call API** -- group voice chats are well-tested; direct 1-on-1 calls need the lower-level `phone.requestCall` API. Test both approaches.
+2. **Audio format mismatch** -- Telegram uses 48kHz/16-bit PCM, Pipecat may expect different rates. You will need resampling (numpy or scipy).
+3. **Telegram session conflicts** -- the userbot session must only be used by ONE process at a time. Do not run auth.py while caller.py is running.

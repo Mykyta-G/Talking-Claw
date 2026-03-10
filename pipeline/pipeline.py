@@ -1,15 +1,52 @@
 """
 Talking-Claw -- Pipecat Voice Pipeline
 
-Runs on the Forge GPU server. Processes voice audio through:
+Runs on the GPU server. Processes voice audio through:
     Silero VAD -> Whisper STT -> Agent Bridge -> Kokoro TTS
 
-Accepts WebSocket connections from the Pi caller and handles
+Accepts WebSocket connections from the caller and handles
 bidirectional audio streaming with the AI agent.
 
 The pipeline uses Pipecat's framework for managing the audio processing
-chain, with a custom Agent Bridge processor that routes to clawdbot
-instead of a local LLM.
+chain, with a custom Agent Bridge processor that routes to your agent API.
+
+--- Switching to a local LLM (Ollama) ---
+
+If you want to skip the HTTP agent bridge and use a fully local LLM,
+replace the AgentBridge + AgentBridgeProcessor section with:
+
+    from pipecat.services.ollama import OllamaLLMService
+    from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+
+    llm = OllamaLLMService(
+        model="llama3.1:8b",
+        base_url="http://localhost:11434/v1",
+    )
+    context = OpenAILLMContext(messages=[
+        {"role": "system", "content": VOICE_SYSTEM_PROMPT}
+    ])
+    context_aggregator = llm.create_context_aggregator(context)
+
+    # Then in the pipeline list, replace agent_processor with:
+    #   context_aggregator.user(), llm, context_aggregator.assistant()
+
+--- Switching to OpenAI-compatible API ---
+
+    from pipecat.services.openai import OpenAILLMService
+
+    llm = OpenAILLMService(
+        model="gpt-4o-mini",
+        api_key="sk-...",
+    )
+
+--- Switching to Anthropic Claude ---
+
+    from pipecat.services.anthropic import AnthropicLLMService
+
+    llm = AnthropicLLMService(
+        model="claude-haiku-4-5",
+        api_key="sk-ant-...",
+    )
 """
 
 import asyncio
@@ -38,7 +75,7 @@ from pipecat.transports.network.websocket_server import (
 )
 from pipecat.vad.silero import SileroVADAnalyzer
 
-from clawd_bridge import ClawdBridge
+from agent_bridge import AgentBridge
 from config import (
     DEFAULT_AGENT_ID,
     PIPELINE_HOST,
@@ -61,14 +98,14 @@ logger = logging.getLogger("talking-claw.pipeline")
 
 class AgentBridgeProcessor(FrameProcessor):
     """
-    Pipecat FrameProcessor that routes transcribed text to the clawdbot
-    agent and emits text frames for TTS.
+    Pipecat FrameProcessor that routes transcribed text to the agent API
+    and emits text frames for TTS.
 
     Sits between STT and TTS in the pipeline:
         STT -> [TranscriptionFrame] -> AgentBridgeProcessor -> [TextFrame] -> TTS
     """
 
-    def __init__(self, bridge: ClawdBridge, **kwargs) -> None:
+    def __init__(self, bridge: AgentBridge, **kwargs) -> None:
         super().__init__(**kwargs)
         self._bridge = bridge
 
@@ -180,8 +217,8 @@ async def run_pipeline(agent_id: str = DEFAULT_AGENT_ID) -> None:
         language=WHISPER_LANGUAGE,
     )
 
-    # -- Agent Bridge: routes to clawdbot --
-    bridge = ClawdBridge(agent_id=agent_id)
+    # -- Agent Bridge: routes to your agent API --
+    bridge = AgentBridge(agent_id=agent_id)
     await bridge.start()
     agent_processor = AgentBridgeProcessor(bridge=bridge)
 
@@ -193,11 +230,11 @@ async def run_pipeline(agent_id: str = DEFAULT_AGENT_ID) -> None:
 
     # -- Assemble pipeline --
     pipeline = Pipeline([
-        transport.input(),       # WebSocket audio in (from Pi)
+        transport.input(),       # WebSocket audio in (from caller)
         stt,                     # Speech to text
         agent_processor,         # Text to agent, agent response back
         tts,                     # Text to speech
-        transport.output(),      # WebSocket audio out (to Pi)
+        transport.output(),      # WebSocket audio out (to caller)
     ])
 
     task = PipelineTask(
@@ -218,7 +255,7 @@ async def run_pipeline(agent_id: str = DEFAULT_AGENT_ID) -> None:
     )
     logger.info("  STT:   %s on %s (%s)", WHISPER_MODEL, WHISPER_DEVICE, WHISPER_COMPUTE_TYPE)
     logger.info("  TTS:   Kokoro voice=%s", voice)
-    logger.info("  Agent: %s via %s", agent_id, "clawdbot gateway")
+    logger.info("  Agent: %s via agent API", agent_id)
     logger.info("Waiting for caller connection...")
 
     try:
@@ -232,11 +269,6 @@ async def main() -> None:
     """Entry point: start health server + pipeline."""
     # Determine agent from CLI args or config
     agent_id = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_AGENT_ID
-
-    # Start health check on a separate port if pipeline port is in use,
-    # otherwise reuse the same port (health runs before pipeline accepts WS).
-    # For simplicity, we embed health in the pipeline's HTTP layer.
-    # The WebSocket transport in Pipecat handles this.
 
     # Run the pipeline
     await run_pipeline(agent_id=agent_id)

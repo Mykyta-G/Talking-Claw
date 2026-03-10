@@ -2,7 +2,7 @@
 Talking-Claw -- Telegram Voice Call Bridge
 
 Makes a real Telegram call and bridges audio to/from the Pipecat voice pipeline
-running on the Forge GPU server via WebSocket.
+running on the pipeline server via WebSocket.
 
 Architecture:
     Telegram Call (48kHz PCM) <-> This Bridge <-> WebSocket <-> Pipecat Pipeline
@@ -34,7 +34,7 @@ from pytgcalls.types import (
 
 from config import (
     AUDIO_CHANNELS,
-    FORGE_WS_URL,
+    PIPELINE_WS_URL,
     PIPELINE_SAMPLE_RATE,
     SESSION_PATH,
     TARGET_USER_ID,
@@ -125,13 +125,13 @@ class CallBridge:
     Bridges a Telegram voice call with the Pipecat voice pipeline.
 
     Flow:
-        1. Connect to Forge WebSocket
+        1. Connect to pipeline server WebSocket
         2. Initiate Telegram call to TARGET_USER_ID
         3. Stream audio bidirectionally
         4. Clean up on call end
     """
 
-    def __init__(self, agent_id: str = "wizard", reason: str = "") -> None:
+    def __init__(self, agent_id: str = "assistant", reason: str = "") -> None:
         self.agent_id = agent_id
         self.reason = reason
         self.transcript = Transcript()
@@ -150,7 +150,7 @@ class CallBridge:
         logger.info("Starting call bridge (agent=%s, reason=%s)", self.agent_id, self.reason)
 
         try:
-            # 1. Connect to Forge pipeline
+            # 1. Connect to pipeline server pipeline
             await self._connect_pipeline()
 
             # 2. Start Pyrogram + pytgcalls
@@ -182,12 +182,12 @@ class CallBridge:
             await self._cleanup()
 
     async def _connect_pipeline(self) -> None:
-        """Connect to the Pipecat voice pipeline WebSocket on Forge."""
-        logger.info("Connecting to pipeline at %s", FORGE_WS_URL)
+        """Connect to the Pipecat voice pipeline WebSocket on the pipeline server."""
+        logger.info("Connecting to pipeline at %s", PIPELINE_WS_URL)
 
         # Send initial config with agent context
         self._ws = await websockets.connect(
-            FORGE_WS_URL,
+            PIPELINE_WS_URL,
             ping_interval=20,
             ping_timeout=10,
             max_size=1_000_000,  # 1MB max message
@@ -278,14 +278,6 @@ class CallBridge:
         """
         logger.info("Initiating call to user %d", TARGET_USER_ID)
 
-        # -- Approach: Private group voice chat --
-        # For a real 1-on-1 call implementation, you would use:
-        #   phone.requestCall -> phone.acceptCall -> encrypted VoIP session
-        # This requires implementing the Telegram call encryption protocol.
-        #
-        # For now, we use the pytgcalls group call approach which is well-tested.
-        # A dedicated private group is created once (see setup instructions).
-
         # Notify the user that a call is incoming
         try:
             await self._app.send_message(
@@ -296,23 +288,6 @@ class CallBridge:
             )
         except Exception:
             logger.warning("Could not send pre-call message to user")
-
-        # The actual call/voice-chat join would happen here.
-        # Placeholder for the group call approach:
-        #
-        # GROUP_CHAT_ID = config.CALL_GROUP_ID  # private group for calls
-        # await self._call.play(
-        #     GROUP_CHAT_ID,
-        #     AudioPiped(
-        #         self._audio_pipe_path,
-        #         audio_parameters=AudioParameters(
-        #             bitrate=48000,
-        #         ),
-        #     ),
-        # )
-        #
-        # For the raw 1-on-1 call approach, the implementation would use:
-        # phone.requestCall with g_a_hash, protocol configuration, etc.
 
         logger.info("Call initiated -- waiting for user to join")
         self._call_active = True
@@ -391,12 +366,12 @@ class CallBridge:
 # CLI entry point
 # ---------------------------------------------------------------------------
 
-async def make_call(agent_id: str = "wizard", reason: str = "") -> str:
+async def make_call(agent_id: str = "assistant", reason: str = "") -> str:
     """
     Public API: initiate a voice call and return the transcript.
 
     Args:
-        agent_id: Which agent personality to use (wizard, killer, gunnar).
+        agent_id: Which agent personality to use.
         reason: Why the call is being made (shown to user, sent to pipeline).
 
     Returns:
@@ -415,7 +390,7 @@ if __name__ == "__main__":
         format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     )
 
-    agent = sys.argv[1] if len(sys.argv) > 1 else "wizard"
+    agent = sys.argv[1] if len(sys.argv) > 1 else "assistant"
     reason = " ".join(sys.argv[2:]) if len(sys.argv) > 2 else ""
 
     transcript = asyncio.run(make_call(agent_id=agent, reason=reason))
