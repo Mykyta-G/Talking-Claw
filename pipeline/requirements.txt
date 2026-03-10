@@ -2,25 +2,24 @@
 #
 # Install: pip install -r requirements.txt
 # Python 3.10+ required
-# NVIDIA GPU with CUDA 12.x required
+#
+# Default setup requires NO GPU -- runs on Pi 5, NUC, old laptop, etc.
+# For GPU mode (local Whisper + Kokoro), see requirements-gpu.txt
 
-# Pipecat voice pipeline framework with extensions
-pipecat-ai[silero,whisper,kokoro,websocket]>=0.0.50
+# Pipecat voice pipeline framework with core extensions
+pipecat-ai[silero,websocket]>=0.0.50
+
+# Groq Whisper API for STT (recommended, no GPU needed)
+pipecat-ai[groq]>=0.0.50
+
+# Piper TTS for local speech synthesis (no GPU needed)
+pipecat-ai[piper]>=0.0.50
 
 # HTTP client for agent API bridge
 aiohttp>=3.9.0
 
 # Audio processing
 numpy>=1.24.0
-soundfile>=0.12.0
 
 # Environment variable loading
 python-dotenv>=1.0.0
-
-# CUDA-accelerated Whisper
-faster-whisper>=1.0.0
-ctranslate2>=4.0.0
-
-# Kokoro TTS
-kokoro-onnx>=0.4.0
-onnxruntime-gpu>=1.17.0

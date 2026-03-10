@@ -1,0 +1,21 @@
+# Talking-Claw Voice Pipeline -- GPU Dependencies
+#
+# Install ON TOP of the base requirements:
+#   pip install -r requirements.txt
+#   pip install -r requirements-gpu.txt
+#
+# Requires NVIDIA GPU with CUDA 12.x and 6+ GB VRAM
+# Set STT_BACKEND=local and TTS_BACKEND=kokoro in .env
+
+# Local Whisper STT (GPU-accelerated)
+pipecat-ai[whisper]>=0.0.50
+faster-whisper>=1.0.0
+ctranslate2>=4.0.0
+
+# Kokoro TTS (GPU-accelerated)
+pipecat-ai[kokoro]>=0.0.50
+kokoro-onnx>=0.4.0
+onnxruntime-gpu>=1.17.0
+
+# Audio file handling (optional, for Kokoro)
+soundfile>=0.12.0

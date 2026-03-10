@@ -1,11 +1,17 @@
 """
 Talking-Claw -- Pipecat Voice Pipeline
 
-Runs on the GPU server. Processes voice audio through:
-    Silero VAD -> Whisper STT -> Agent Bridge -> Kokoro TTS
+Processes voice audio through a configurable STT -> Agent Bridge -> TTS chain.
+Accepts WebSocket connections from the caller and handles bidirectional audio
+streaming with the AI agent.
 
-Accepts WebSocket connections from the caller and handles
-bidirectional audio streaming with the AI agent.
+Supports two configurations via STT_BACKEND and TTS_BACKEND in .env:
+
+    Recommended (no GPU, runs on Pi 5 / NUC / old laptop):
+        Silero VAD -> Groq Whisper API -> Agent Bridge -> Piper TTS
+
+    GPU Local (needs NVIDIA GPU with 6+ GB VRAM):
+        Silero VAD -> Local Whisper STT -> Agent Bridge -> Kokoro TTS
 
 The pipeline uses Pipecat's framework for managing the audio processing
 chain, with a custom Agent Bridge processor that routes to your agent API.
@@ -54,6 +60,7 @@ import json
 import logging
 import signal
 import sys
+from pathlib import Path
 from typing import Optional
 
 from pipecat.frames.frames import (
@@ -67,8 +74,6 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
-from pipecat.services.kokoro import KokoroTTSService
-from pipecat.services.whisper import WhisperSTTService
 from pipecat.transports.network.websocket_server import (
     WebSocketServerParams,
     WebSocketServerTransport,
@@ -81,15 +86,118 @@ from config import (
     PIPELINE_HOST,
     PIPELINE_PORT,
     PIPELINE_SAMPLE_RATE,
+    STT_BACKEND,
+    TTS_BACKEND,
     VAD_THRESHOLD,
-    WHISPER_COMPUTE_TYPE,
-    WHISPER_DEVICE,
-    WHISPER_LANGUAGE,
-    WHISPER_MODEL,
-    get_voice,
 )
 
 logger = logging.getLogger("talking-claw.pipeline")
+
+
+# ---------------------------------------------------------------------------
+# STT factory
+# ---------------------------------------------------------------------------
+
+def create_stt_service():
+    """
+    Create the speech-to-text service based on STT_BACKEND config.
+
+    Returns a Pipecat STT service instance.
+
+    Groq (recommended): Uses the Groq Whisper API. Free tier available.
+        No GPU needed. Requires GROQ_API_KEY in .env.
+
+    Local: Uses faster-whisper running locally. Requires NVIDIA GPU.
+        Set WHISPER_MODEL, WHISPER_DEVICE, WHISPER_COMPUTE_TYPE in .env.
+    """
+    if STT_BACKEND == "groq":
+        from pipecat.services.groq.stt import GroqSTTService
+
+        from config import GROQ_API_KEY, GROQ_WHISPER_MODEL, WHISPER_LANGUAGE
+
+        if not GROQ_API_KEY:
+            raise RuntimeError(
+                "GROQ_API_KEY is required when STT_BACKEND=groq. "
+                "Get a free key at https://console.groq.com"
+            )
+
+        logger.info("STT backend: Groq Whisper API (model=%s)", GROQ_WHISPER_MODEL)
+        return GroqSTTService(
+            api_key=GROQ_API_KEY,
+            model=GROQ_WHISPER_MODEL,
+        )
+
+    elif STT_BACKEND == "local":
+        from pipecat.services.whisper import WhisperSTTService
+
+        from config import WHISPER_COMPUTE_TYPE, WHISPER_DEVICE, WHISPER_LANGUAGE, WHISPER_MODEL
+
+        logger.info(
+            "STT backend: Local Whisper (model=%s, device=%s, compute=%s)",
+            WHISPER_MODEL, WHISPER_DEVICE, WHISPER_COMPUTE_TYPE,
+        )
+        return WhisperSTTService(
+            model=WHISPER_MODEL,
+            device=WHISPER_DEVICE,
+            compute_type=WHISPER_COMPUTE_TYPE,
+            no_speech_prob=0.4,
+            language=WHISPER_LANGUAGE,
+        )
+
+    else:
+        raise RuntimeError(
+            f"Unknown STT_BACKEND: {STT_BACKEND}. Use 'groq' or 'local'."
+        )
+
+
+# ---------------------------------------------------------------------------
+# TTS factory
+# ---------------------------------------------------------------------------
+
+def create_tts_service(agent_id: str):
+    """
+    Create the text-to-speech service based on TTS_BACKEND config.
+
+    Returns a Pipecat TTS service instance.
+
+    Piper (recommended): Runs locally on CPU. No GPU needed. Free.
+        Uses piper-tts with downloadable ONNX voice models.
+        Set PIPER_VOICE in .env (e.g. en_US-ryan-high).
+
+    Kokoro: Runs locally on GPU. Better voice quality.
+        Requires NVIDIA GPU. Set DEFAULT_VOICE in .env.
+    """
+    if TTS_BACKEND == "piper":
+        from pipecat.services.piper.tts import PiperTTSService
+
+        from config import PIPER_DOWNLOAD_DIR, PIPER_USE_CUDA, PIPER_VOICE
+
+        download_dir = Path(PIPER_DOWNLOAD_DIR) if PIPER_DOWNLOAD_DIR else Path(__file__).parent / "models"
+        download_dir.mkdir(parents=True, exist_ok=True)
+
+        logger.info("TTS backend: Piper (voice=%s, cuda=%s)", PIPER_VOICE, PIPER_USE_CUDA)
+        return PiperTTSService(
+            voice_id=PIPER_VOICE,
+            download_dir=download_dir,
+            use_cuda=PIPER_USE_CUDA,
+        )
+
+    elif TTS_BACKEND == "kokoro":
+        from pipecat.services.kokoro import KokoroTTSService
+
+        from config import get_voice
+
+        voice = get_voice(agent_id)
+        logger.info("TTS backend: Kokoro (voice=%s)", voice)
+        return KokoroTTSService(
+            voice=voice,
+            sample_rate=PIPELINE_SAMPLE_RATE,
+        )
+
+    else:
+        raise RuntimeError(
+            f"Unknown TTS_BACKEND: {TTS_BACKEND}. Use 'piper' or 'kokoro'."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +283,8 @@ class HealthServer:
         return web.json_response({
             "status": "ok",
             "service": "talking-claw-pipeline",
+            "stt_backend": STT_BACKEND,
+            "tts_backend": TTS_BACKEND,
         })
 
 
@@ -186,11 +296,10 @@ async def run_pipeline(agent_id: str = DEFAULT_AGENT_ID) -> None:
     """
     Start the Pipecat voice pipeline.
 
-    Sets up the full processing chain:
-        WebSocket Input -> Silero VAD -> Whisper STT -> Agent Bridge -> Kokoro TTS -> WebSocket Output
+    Sets up the full processing chain based on configured backends:
+        WebSocket Input -> Silero VAD -> STT -> Agent Bridge -> TTS -> WebSocket Output
     """
-    voice = get_voice(agent_id)
-    logger.info("Starting pipeline (agent=%s, voice=%s)", agent_id, voice)
+    logger.info("Starting pipeline (agent=%s, stt=%s, tts=%s)", agent_id, STT_BACKEND, TTS_BACKEND)
 
     # -- Transport: WebSocket server for audio I/O --
     transport = WebSocketServerTransport(
@@ -208,25 +317,16 @@ async def run_pipeline(agent_id: str = DEFAULT_AGENT_ID) -> None:
         )
     )
 
-    # -- STT: Whisper (runs on GPU) --
-    stt = WhisperSTTService(
-        model=WHISPER_MODEL,
-        device=WHISPER_DEVICE,
-        compute_type=WHISPER_COMPUTE_TYPE,
-        no_speech_prob=0.4,
-        language=WHISPER_LANGUAGE,
-    )
+    # -- STT: configurable backend --
+    stt = create_stt_service()
 
     # -- Agent Bridge: routes to your agent API --
     bridge = AgentBridge(agent_id=agent_id)
     await bridge.start()
     agent_processor = AgentBridgeProcessor(bridge=bridge)
 
-    # -- TTS: Kokoro (runs on GPU) --
-    tts = KokoroTTSService(
-        voice=voice,
-        sample_rate=PIPELINE_SAMPLE_RATE,
-    )
+    # -- TTS: configurable backend --
+    tts = create_tts_service(agent_id)
 
     # -- Assemble pipeline --
     pipeline = Pipeline([
@@ -253,8 +353,8 @@ async def run_pipeline(agent_id: str = DEFAULT_AGENT_ID) -> None:
         PIPELINE_HOST,
         PIPELINE_PORT,
     )
-    logger.info("  STT:   %s on %s (%s)", WHISPER_MODEL, WHISPER_DEVICE, WHISPER_COMPUTE_TYPE)
-    logger.info("  TTS:   Kokoro voice=%s", voice)
+    logger.info("  STT:   %s", STT_BACKEND)
+    logger.info("  TTS:   %s", TTS_BACKEND)
     logger.info("  Agent: %s via agent API", agent_id)
     logger.info("Waiting for caller connection...")
 

@@ -1,10 +1,14 @@
 # Talking-Claw
 
-**An AI that calls you on the phone.**
+**Give your AI agent a phone call.**
 
 Your AI agent works autonomously. When it finishes a task or needs your input, it calls
 you on Telegram. Your phone rings. You pick up and have a real voice conversation.
 After the call, the AI summarizes and continues working.
+
+The key idea: the voice pipeline connects to **your own AI agent** via HTTP API. Your
+agent keeps its personality, memory, and tools. This is not a generic chatbot -- it is
+your agent, speaking.
 
 ---
 
@@ -14,62 +18,92 @@ After the call, the AI summarizes and continues working.
 Your phone rings (Telegram call)
          |
          v
-   [ Caller ]              [ Voice Pipeline ]
-   Telegram userbot         Whisper STT
-   initiates VoIP call  <-> Agent (LLM)
-   bridges audio            Kokoro TTS
+   [ Your Machine ]         [ External Services ]
+   Caller (Telegram VoIP)    Groq Whisper API (free STT)
+   Piper TTS (local)         Your Agent API (any LLM backend)
+   Silero VAD (local)
 ```
 
 1. Your AI agent runs `python trigger.py "task finished"`
 2. The caller initiates a real Telegram VoIP call to your account
 3. Your phone rings -- you pick up
-4. Your speech is transcribed (Whisper), sent to the LLM, response is spoken back (Kokoro)
-5. You have a natural voice conversation with ~1-1.5 second response time
-6. Call ends, transcript is saved, agent continues working
+4. Your speech is sent to Groq's Whisper API for transcription (~200ms)
+5. The transcript goes to your agent's HTTP API, which responds with text
+6. Piper TTS speaks the response locally (~100ms)
+7. You have a natural voice conversation with ~1-1.5 second response time
+8. Call ends, transcript is saved, agent continues working
 
 ---
 
-## Deployment Options
+## Recommended Setup
 
-Talking-Claw has two components: the **caller** (Telegram call bridge) and the
-**pipeline** (voice processing). You can run them however fits your setup:
-
-### Single Machine (Simplest)
-
-If you have a PC, Mac Mini, or server with a decent GPU:
+Everything runs on **one low-power machine** -- a Raspberry Pi 5, Intel NUC, old laptop,
+or any Linux box. No GPU required.
 
 ```
-[ Your Machine ]
-  caller/    -- Telegram userbot
-  pipeline/  -- STT + LLM + TTS
+[ Phone ]                              [ External ]
+Telegram call                           Groq Whisper API
+    |                                   (free, ~200ms)
+    v                                       ^
+[ Pi 5 / NUC / Laptop ]                    |
+  caller/          Telegram VoIP bridge ----+
+  pipeline/        Silero VAD (local)       |
+                   Agent Bridge ----------->+--- Your Agent API
+                   Piper TTS (local)            (Claude, GPT, custom, etc.)
 ```
 
-Both components run on the same machine. Set `PIPELINE_HOST=localhost` in your .env.
+| Component | Where | Cost | Latency |
+|-----------|-------|------|---------|
+| STT (Groq Whisper) | Groq cloud API | Free tier (28,800s/day) | ~200ms |
+| LLM (your agent) | Your agent's API | Depends on your backend | ~300-600ms |
+| TTS (Piper) | Local on your machine | Free | ~100ms |
+| VAD (Silero) | Local on your machine | Free | ~100ms |
 
-### Two Machines (Recommended for Always-On)
+**Total cost for the voice pipeline: $0.** You only pay for your LLM backend
+(and many options are free or pennies per call).
 
-If you have a low-power server (Raspberry Pi, NUC, old laptop) that runs 24/7 and a
-separate GPU machine for processing:
+---
 
-```
-[ Always-On Server ]          [ GPU Machine ]
-  caller/                       pipeline/
-  Telegram userbot              Whisper STT
-  bridges audio over network    LLM (local or API)
-                                Kokoro TTS
-```
+## Alternative Configurations
 
-The caller runs on the always-on machine and streams audio to the GPU machine over
-your local network (or Tailscale, WireGuard, etc). Set `PIPELINE_HOST` to the GPU
-machine's IP address.
+The recommended setup works for most people, but you can swap components depending
+on your hardware and preferences:
 
-This is useful when your GPU machine sleeps to save power -- the caller can wake it
-with Wake-on-LAN before starting a call.
+### GPU Local
 
-### Cloud GPU (No Local GPU)
+Run everything locally on a machine with an NVIDIA GPU (6+ GB VRAM).
+Fastest option, zero API costs, but needs a GPU.
 
-You can run the pipeline on a cloud GPU instance (Lambda, RunPod, Vast.ai) and the
-caller on any cheap VPS or home server. Just point `PIPELINE_HOST` at the cloud instance.
+- STT: faster-whisper (local, ~200ms)
+- TTS: Kokoro (local, ~150ms, better voice quality)
+- LLM: Your agent API (or Ollama for fully local)
+
+Set `STT_BACKEND=local` and `TTS_BACKEND=kokoro` in `pipeline/.env`.
+Install GPU dependencies: `pip install -r requirements-gpu.txt`
+
+### Full Cloud
+
+No local compute at all. Run the caller on any VPS and use cloud APIs for everything.
+Simplest setup, highest ongoing cost.
+
+- STT: OpenAI Whisper API or Groq
+- TTS: OpenAI TTS API or ElevenLabs
+- LLM: Any cloud LLM API
+
+### Full Local (Offline)
+
+Run everything locally including the LLM via Ollama. Free, fully offline after setup,
+but needs a GPU and the LLM is a generic model (not your agent with its memory/tools).
+
+- STT: faster-whisper (local)
+- TTS: Kokoro or Piper (local)
+- LLM: Ollama (local) -- see pipeline.py comments for setup
+
+### PersonaPlex (NVIDIA)
+
+NVIDIA's speech-to-speech pipeline replaces the entire STT+LLM+TTS chain with a single
+model. Very fast, impressive quality, but requires an NVIDIA GPU and is its own model --
+you cannot plug in your own agent as the brain.
 
 ---
 
@@ -77,8 +111,9 @@ caller on any cheap VPS or home server. Just point `PIPELINE_HOST` at the cloud 
 
 - **Python 3.10+**
 - **A second Telegram account** for the AI (free via TextNow or a cheap prepaid SIM)
-- **For the pipeline:** An NVIDIA GPU with 6+ GB VRAM (GTX 1060 or better)
-  - Or run without a GPU using CPU-only mode (slower, ~3-5s response time)
+- **For the recommended setup:** Any Linux machine (Pi 5, NUC, old laptop). No GPU needed.
+- **For GPU local mode:** An NVIDIA GPU with 6+ GB VRAM (GTX 1060 or better)
+- **A Groq API key** (free tier): https://console.groq.com
 
 ---
 
@@ -99,9 +134,11 @@ Short version:
 ```bash
 cd pipeline/
 cp .env.example .env
-# Edit .env with your settings
+# Edit .env:
+#   - Set GROQ_API_KEY (free from https://console.groq.com)
+#   - Set AGENT_API_URL (your agent's HTTP endpoint)
 
-# Automatic setup (installs deps, downloads models, tests everything):
+# Automatic setup (installs deps, downloads Piper voice model):
 chmod +x setup.sh
 ./setup.sh
 
@@ -112,12 +149,16 @@ pip install -r requirements.txt
 python pipeline.py
 ```
 
+For GPU local mode, use `./setup.sh --gpu` or install `requirements-gpu.txt` manually
+and set `STT_BACKEND=local` / `TTS_BACKEND=kokoro` in `.env`.
+
 ### 3. Set Up the Caller
 
 ```bash
 cd caller/
 cp .env.example .env
-# Edit .env with your Telegram API credentials and pipeline server address
+# Edit .env with your Telegram API credentials
+# PIPELINE_HOST defaults to localhost (same machine as pipeline)
 
 python3 -m venv venv
 source venv/bin/activate
@@ -148,11 +189,13 @@ Talking-Claw/
     .env.example          Template for secrets and settings
 
   pipeline/               Voice processing pipeline
-    pipeline.py           Pipecat pipeline (VAD -> STT -> LLM -> TTS)
+    pipeline.py           Pipecat pipeline (VAD -> STT -> Agent -> TTS)
     agent_bridge.py       Routes transcriptions to your AI agent backend
-    config.py             Configuration (reads from .env)
+    config.py             Configuration with backend selection
     .env.example          Template for settings
-    setup.sh              One-command installer (GPU server)
+    setup.sh              One-command installer
+    requirements.txt      Base dependencies (no GPU needed)
+    requirements-gpu.txt  Additional GPU dependencies (optional)
 
   plans/                  Detailed build guides for each phase
 ```
@@ -161,33 +204,46 @@ Talking-Claw/
 
 ## LLM Backend Options
 
-The pipeline supports multiple LLM backends via the Agent Bridge:
+The pipeline supports any LLM backend via the Agent Bridge HTTP API:
 
 | Backend | Latency | Cost | Setup |
 |---------|---------|------|-------|
-| Ollama (local) | ~400ms | Free | `AGENT_API_URL=http://localhost:11434` |
+| Custom agent API | Varies | Varies | Any HTTP POST endpoint returning JSON |
 | OpenAI API | ~300ms | ~$0.002/turn | Set `AGENT_API_URL` + `AGENT_API_TOKEN` |
 | Anthropic (Claude) | ~300ms | ~$0.001/turn | Same, point at Anthropic-compatible endpoint |
-| Custom agent API | Varies | Varies | Any HTTP POST endpoint returning JSON |
+| Ollama (local) | ~400ms | Free | `AGENT_API_URL=http://localhost:11434` |
 
-See `pipeline/.env.example` for configuration details.
+The Agent Bridge sends a POST with the user's transcribed speech and expects a text
+response back. See `pipeline/.env.example` and `pipeline/agent_bridge.py` for the
+full HTTP contract. It works with any backend that speaks this simple protocol.
 
 ---
 
 ## Latency
 
-With streaming (sentence-by-sentence TTS), the response time is:
+With the recommended setup (Groq + Piper), response time is:
 
 | Step | Time |
 |------|------|
-| Voice activity detection | ~100ms |
-| Speech-to-text (Whisper) | ~200ms |
-| LLM (time to first token) | ~300-600ms |
+| Voice activity detection (Silero) | ~100ms |
+| Speech-to-text (Groq Whisper API) | ~200ms |
+| LLM / agent API (time to first token) | ~300-600ms |
+| Text-to-speech (Piper, local) | ~100ms |
+| **Total to first audio** | **~0.8-1.2s** |
+
+With GPU local mode (faster-whisper + Kokoro):
+
+| Step | Time |
+|------|------|
+| Voice activity detection (Silero) | ~100ms |
+| Speech-to-text (local Whisper) | ~200ms |
+| LLM / agent API (time to first token) | ~300-600ms |
 | Text-to-speech (Kokoro) | ~150ms |
 | **Total to first audio** | **~1.0-1.5s** |
 
-You hear the AI start talking in about one second. The rest of the response streams
-while the first sentence is being spoken.
+Responses are **streamed sentence-by-sentence**. TTS starts speaking the first sentence
+while the agent is still generating the rest. You hear the AI start talking in about one
+second.
 
 ---
 
@@ -198,8 +254,10 @@ while the first sentence is being spoken.
 | [Pipecat](https://github.com/pipecat-ai/pipecat) | Voice pipeline framework | BSD |
 | [Pyrogram](https://github.com/pyrogram/pyrogram) | Telegram MTProto client | LGPL |
 | [pytgcalls](https://github.com/pytgcalls/pytgcalls) | Telegram VoIP bridge | LGPL |
-| [faster-whisper](https://github.com/SYSTRAN/faster-whisper) | Speech-to-text | MIT |
-| [Kokoro](https://github.com/thewh1teagle/kokoro-onnx) | Text-to-speech (82M) | Apache |
+| [Groq Whisper API](https://console.groq.com) | Speech-to-text (recommended) | Proprietary (free tier) |
+| [Piper](https://github.com/rhasspy/piper) | Text-to-speech, local (recommended) | MIT |
+| [faster-whisper](https://github.com/SYSTRAN/faster-whisper) | Speech-to-text, local (GPU mode) | MIT |
+| [Kokoro](https://github.com/thewh1teagle/kokoro-onnx) | Text-to-speech, local (GPU mode) | Apache |
 | [Silero VAD](https://github.com/snakers4/silero-vad) | Voice activity detection | MIT |
 
 ---
