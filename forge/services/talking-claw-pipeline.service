@@ -1,0 +1,42 @@
+# Talking-Claw Voice Pipeline -- systemd service
+#
+# This runs continuously, waiting for incoming call connections.
+#
+# Install (automated by setup.sh):
+#   sudo cp talking-claw-pipeline.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable talking-claw-pipeline
+#   sudo systemctl start talking-claw-pipeline
+#
+# Logs:
+#   journalctl -u talking-claw-pipeline -f
+
+[Unit]
+Description=Talking-Claw Voice Pipeline (Pipecat)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+Group=YOUR_USER
+WorkingDirectory=/home/YOUR_USER/talking-claw/forge
+ExecStart=/home/YOUR_USER/talking-claw/forge/venv/bin/python pipeline.py
+Restart=always
+RestartSec=5
+
+# Environment
+EnvironmentFile=-/home/YOUR_USER/talking-claw/forge/.env
+Environment=CUDA_VISIBLE_DEVICES=0
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=talking-claw-pipeline
+
+# Resource limits (generous for GPU workload)
+MemoryMax=8G
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,26 @@
+# Talking-Claw Forge Pipeline -- Dependencies
+#
+# Install: pip install -r requirements.txt
+# Python 3.10+ required
+# NVIDIA GPU with CUDA 12.x required
+
+# Pipecat voice pipeline framework with extensions
+pipecat-ai[silero,whisper,kokoro,websocket]>=0.0.50
+
+# HTTP client for clawdbot gateway
+aiohttp>=3.9.0
+
+# Audio processing
+numpy>=1.24.0
+soundfile>=0.12.0
+
+# Environment variable loading
+python-dotenv>=1.0.0
+
+# CUDA-accelerated Whisper
+faster-whisper>=1.0.0
+ctranslate2>=4.0.0
+
+# Kokoro TTS
+kokoro-onnx>=0.4.0
+onnxruntime-gpu>=1.17.0

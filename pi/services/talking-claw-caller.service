@@ -1,0 +1,43 @@
+# Talking-Claw Caller -- systemd service
+#
+# This is a oneshot service triggered on demand by agents.
+# It does NOT run continuously -- it starts a call, then exits.
+#
+# Install:
+#   sudo cp talking-claw-caller.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable talking-claw-caller
+#
+# Trigger a call:
+#   sudo systemctl start talking-claw-caller
+#
+# Or run directly:
+#   cd ~/Talking-Claw/pi && source venv/bin/activate && python trigger.py
+
+[Unit]
+Description=Talking-Claw Voice Call (oneshot)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=mykyta-g
+Group=mykyta-g
+WorkingDirectory=/home/mykyta-g/Talking-Claw/pi
+ExecStart=/home/mykyta-g/Talking-Claw/pi/venv/bin/python trigger.py
+RemainAfterExit=no
+
+# Environment
+EnvironmentFile=-/home/mykyta-g/Talking-Claw/pi/.env
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=talking-claw-caller
+
+# Resource limits
+MemoryMax=256M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

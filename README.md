@@ -35,17 +35,61 @@ Your Phone ←── Telegram Call ──→ Orchestrator (Pi/Server)
 - **A second Telegram account** for the AI (free via TextNow)
 - **Python 3.10+**
 
+## Project Structure
+
+```
+Talking-Claw/
+  pi/                  Telegram caller (runs on Pi / orchestrator)
+    caller.py          Call bridge: Telegram audio <-> WebSocket
+    trigger.py         Entry point for agents (wake Forge, start call)
+    auth.py            One-time Pyrogram session auth
+    config.py          Configuration from .env
+    services/          systemd service file
+  forge/               Voice pipeline (runs on GPU server)
+    pipeline.py        Pipecat pipeline: VAD -> STT -> Agent -> TTS
+    clawd_bridge.py    Custom processor: routes to clawdbot agent
+    config.py          Configuration from .env
+    setup.sh           One-command installer
+    services/          systemd service file
+  plans/               Detailed build guides (5 phases)
+```
+
 ## Quick Start
 
-See the [plans/](./plans/) folder for the full build guide:
+See the [plans/](./plans/) folder for the detailed build guide:
 
-1. **[Phase 1](./plans/PHASE-1-TELEGRAM-ACCOUNT.md)** — Create AI's Telegram account (15 min)
-2. **[Phase 2](./plans/PHASE-2-VOICE-PIPELINE.md)** — Set up voice pipeline on GPU (1-2 hours)
-3. **[Phase 3](./plans/PHASE-3-TELEGRAM-CALLER.md)** — Set up Telegram caller (1-2 hours)
-4. **[Phase 4](./plans/PHASE-4-VOICE-PERSONALITY.md)** — Voice personality & agent integration (30 min)
-5. **[Phase 5](./plans/PHASE-5-TESTING.md)** — Testing & optimization (1 hour)
+1. **[Phase 1](./plans/PHASE-1-TELEGRAM-ACCOUNT.md)** -- Create AI's Telegram account (15 min)
+2. **[Phase 2](./plans/PHASE-2-VOICE-PIPELINE.md)** -- Set up voice pipeline on GPU (1-2 hours)
+3. **[Phase 3](./plans/PHASE-3-TELEGRAM-CALLER.md)** -- Set up Telegram caller (1-2 hours)
+4. **[Phase 4](./plans/PHASE-4-VOICE-PERSONALITY.md)** -- Voice personality and agent integration (30 min)
+5. **[Phase 5](./plans/PHASE-5-TESTING.md)** -- Testing and optimization (1 hour)
 
 **Total build time: One afternoon.**
+
+### GPU Server (Forge)
+
+```bash
+cd forge/
+cp .env.example .env    # edit with your gateway details
+./setup.sh              # installs everything, downloads models
+```
+
+### Orchestrator (Pi)
+
+```bash
+cd pi/
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env    # edit with your Telegram credentials
+python auth.py          # one-time: authenticate Telegram session
+```
+
+### Make a Call
+
+```bash
+cd pi/ && source venv/bin/activate
+python trigger.py wizard "deployment finished, need your review"
+```
 
 ## How It Works
 
